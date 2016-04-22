@@ -32,16 +32,6 @@ data <- subset(results , Experiment %in% c('agr-amb-a','agr-amb-b','agr-amb-c','
 data.acceptability <- subset(agr.amb, TrialType == 'Question')
 data.RT <- subset(agr.amb, TrialType == 'DashedSentence')
 
-#### sort acceptability data by condition
 
-data.acceptability.SPP <- subset(data.acceptability, Experiment == 'agr-amb-a')
-data.acceptability.SPS <- subset(data.acceptability, Experiment == 'agr-amb-b')
-data.acceptability.PSP <- subset(data.acceptability, Experiment == 'agr-amb-c')
-data.acceptability.PSS <- subset(data.acceptability, Experiment == 'agr-amb-d')
-
-
-
-
-#### sort RT data by condition
 
 
