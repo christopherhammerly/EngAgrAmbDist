@@ -9,4 +9,4 @@ All the files necessary to set up the experiment on Ibex Farm. To recreate the e
 
 ### Analysis
 
-Preliminary analysis pipeline for the resutls.
+Preliminary analysis pipeline for the results.
