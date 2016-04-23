@@ -32,7 +32,7 @@ setwd("/Users/chrishammerly")
 #### Load data
 
 mycols <- c("Subject","MD5","TrialType","Number","Element","Experiment","Item","Sentence","Response","X","RT")
-results <- read.csv('/Users/chrishammerly/Desktop/agr_amb_dist/results/fake_results.csv',
+results <- read.csv('/Users/chrishammerly/EngAgrAmbDist/Data/results.csv',
                     header = 0, 
                     sep = ",", 
                     comment.char = "#",
@@ -60,6 +60,18 @@ data.RT$X <- as.numeric(as.character(data.RT$X))
 
 #### Basic descriptive stats
 
+subj.by.cond <- data.acceptability %>% 
+    group_by(Subject, Experiment) %>% 
+    summarise(mean = mean(Response))
+
+
+cond.summ <- subj.by.cond %>%
+  group_by(Experiment) %>%
+  summarise(mean = mean(mean),
+            SEM = sd(mean)/sqrt(n_distinct(Subject)))
+
+
+## old descriptive stuff
 mean(data.acceptability$Response)
 tapply(data.acceptability$Response, data.acceptability$attachment, mean)
 tapply(data.acceptability$Response, data.acceptability$attachment, sd)
