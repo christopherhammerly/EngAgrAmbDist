@@ -7,10 +7,10 @@
 #####################################################################
 
 ### Condition key for convenient reference: order is N1 N2 V; S = singular, P = plural
-# agr-amb-a = SPP
-# agr-amb-b = SPS
-# agr-amb-c = PSP
-# agr-amb-d = PSS
+# agr-amb-a = SPP = low, singular
+# agr-amb-b = SPS = high, plural
+# agr-amb-c = PSP = high, singular
+# agr-amb-d = PSS = low, plural
 
 #### Load libraries
 
@@ -19,6 +19,7 @@ library(dplyr)
 library(ggplot2)
 library(tikzDevice)
 library(downloader)
+library(ez)
 
 #### Set working directory
 #### Eventually, I will add a github link so people will be able to download the data directly and run analyses seamlessly.
@@ -64,26 +65,42 @@ subj.by.cond <- data.acceptability %>%
     group_by(Subject, Experiment) %>% 
     summarise(mean = mean(Response))
 
-
 cond.summ <- subj.by.cond %>%
   group_by(Experiment) %>%
-  summarise(mean = mean(mean),
+  summarise(mean_cond = mean(mean),
             SEM = sd(mean)/sqrt(n_distinct(Subject)))
 
+subj.by.factor <- data.acceptability %>% 
+  group_by(Subject, attractor, attachment) %>% 
+  summarise(mean = mean(Response))
 
-## old descriptive stuff
-mean(data.acceptability$Response)
-tapply(data.acceptability$Response, data.acceptability$attachment, mean)
-tapply(data.acceptability$Response, data.acceptability$attachment, sd)
-tapply(data.acceptability$Response, data.acceptability$attractor, mean)
-tapply(data.acceptability$Response, data.acceptability$attractor, sd)
+factor.summ <- subj.by.factor %>%
+  group_by(attachment, attractor) %>%
+  summarise(mean_cond = mean(mean),
+            SEM = sd(mean)/sqrt(n_distinct(Subject)))
+
+attractor.summ <- subj.by.factor %>%
+  group_by(attractor) %>%
+  summarise(mean_cond = mean(mean),
+            SEM = sd(mean)/sqrt(n_distinct(Subject)))
+
+attachment.summ <- subj.by.factor %>%
+  group_by(attachment) %>%
+  summarise(mean_cond = mean(mean),
+            SEM = sd(mean)/sqrt(n_distinct(Subject)))
 
 #### Hypothesis testing
 
-aov(Response ~ attachment*attractor, data=data.acceptability)
+# something seems off about this one
+ezANOVA(data = data.frame(subj.by.cond), dv = mean, wid = Subject, within = Experiment)
 
-t.test(data.acceptability$Response~data.acceptability$attachment)
-t.test(data.acceptability$Response~data.acceptability$attractor)
+#maybe this is right?
+ezANOVA(data = data.frame(subj.by.factor), dv = mean, wid = Subject, within = c(attractor, attachment))
 
+# here are some attempts with the old method, but it comes up with different results than exANOVA
+anova <- aov(Response ~ attachment*attractor, data=data.acceptability)
+summary(anova)
 
+anova2 <- aov(mean ~ attachment*attractor, data=subj.by.factor)
+summary(anova2)
 
