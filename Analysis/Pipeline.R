@@ -54,12 +54,12 @@ data$attractor <- ifelse(data$Experiment=='agr-amb-a' | data$Experiment=='agr-am
 data.acceptability <- subset(data, TrialType == 'Question')
 data.RT <- subset(data, TrialType == 'DashedSentence')
 
+#### a sanity check to ensure the correct number of subjects have been processed through
 print(data.acceptability %>% summarise(number = n_distinct(Subject)))
 
-#### change the values for the judgments and RT from characters to numbers 
+#### change the values for the judgments from characters to numbers 
 
 data.acceptability$response <- as.numeric(as.character(data.acceptability$response))
-data.RT$X <- as.numeric(as.character(data.RT$X))
 
 #### Basic descriptive stats
 
