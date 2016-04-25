@@ -14,10 +14,8 @@
 
 #### Load libraries
 
-library(MASS)
 library(dplyr)
 library(ggplot2)
-library(tikzDevice)
 library(downloader)
 library(ez)
 
@@ -32,12 +30,14 @@ setwd("/Users/chrishammerly")
 
 #### Load data
 
-mycols <- c("Subject","MD5","TrialType","Number","Element","Experiment","Item","Sentence","Response","X","RT")
+mycols <- c("Subject","MD5","TrialType","Number","Element","Experiment","Item", "question", "response","null","RT","null")
 results <- read.csv('/Users/chrishammerly/EngAgrAmbDist/Data/results.csv',
                     header = 0, 
-                    sep = ",", 
+                    sep = ",",
+                    quote = "",
                     comment.char = "#",
-                    col.names=mycols)
+                    col.names=mycols,
+                    fill = TRUE)
 
 #### segregate ambiguity data from fillers and other experiment
 
@@ -54,16 +54,19 @@ data$attractor <- ifelse(data$Experiment=='agr-amb-a' | data$Experiment=='agr-am
 data.acceptability <- subset(data, TrialType == 'Question')
 data.RT <- subset(data, TrialType == 'DashedSentence')
 
+print(data.acceptability %>% summarise(number = n_distinct(Subject)))
+
 #### change the values for the judgments and RT from characters to numbers 
 
-data.acceptability$Response <- as.numeric(as.character(data.acceptability$Response))
+data.acceptability$response <- as.numeric(as.character(data.acceptability$response))
 data.RT$X <- as.numeric(as.character(data.RT$X))
 
 #### Basic descriptive stats
 
 subj.by.cond <- data.acceptability %>% 
     group_by(Subject, Experiment) %>% 
-    summarise(mean = mean(Response))
+    summarise(mean.resp = mean(response),
+              SEM = sd(response)/sqrt(n_distinct(Experiment)))
 
 cond.summ <- subj.by.cond %>%
   group_by(Experiment) %>%
@@ -72,35 +75,20 @@ cond.summ <- subj.by.cond %>%
 
 subj.by.factor <- data.acceptability %>% 
   group_by(Subject, attractor, attachment) %>% 
-  summarise(mean = mean(Response))
+  summarise(mean = mean(response))
 
 factor.summ <- subj.by.factor %>%
   group_by(attachment, attractor) %>%
   summarise(mean_cond = mean(mean),
             SEM = sd(mean)/sqrt(n_distinct(Subject)))
 
-attractor.summ <- subj.by.factor %>%
-  group_by(attractor) %>%
-  summarise(mean_cond = mean(mean),
-            SEM = sd(mean)/sqrt(n_distinct(Subject)))
-
-attachment.summ <- subj.by.factor %>%
-  group_by(attachment) %>%
-  summarise(mean_cond = mean(mean),
-            SEM = sd(mean)/sqrt(n_distinct(Subject)))
-
 #### Hypothesis testing
 
-# something seems off about this one
-ezANOVA(data = data.frame(subj.by.cond), dv = mean, wid = Subject, within = Experiment)
+ezANOVA(data = data.acceptability, dv = response, wid = Subject, within = c(attractor, attachment))
 
-#maybe this is right?
-ezANOVA(data = data.frame(subj.by.factor), dv = mean, wid = Subject, within = c(attractor, attachment))
-
-# here are some attempts with the old method, but it comes up with different results than exANOVA
-anova <- aov(Response ~ attachment*attractor, data=data.acceptability)
-summary(anova)
-
-anova2 <- aov(mean ~ attachment*attractor, data=subj.by.factor)
-summary(anova2)
+    #$ANOVA
+    #                Effect DFn DFd          F   p p<.05                ges
+    #2            attractor   1  47 2.62525336 0.1118668       6.829641e-03
+    #3           attachment   1  47 0.01401451 0.9062688       3.681569e-05
+    #4 attractor:attachment   1  47 0.05863566 0.8097190       1.022591e-04
 
