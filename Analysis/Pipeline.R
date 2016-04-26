@@ -48,11 +48,18 @@ data <- subset(results , Experiment %in% c('agr-amb-a','agr-amb-b','agr-amb-c','
 data$attachment <- ifelse(data$Experiment=='agr-amb-b' | data$Experiment=='agr-amb-c','high','low')
 data$attractor <- ifelse(data$Experiment=='agr-amb-a' | data$Experiment=='agr-amb-c','singular','plural')
 
-
 #### segregate acceptability judgments and reading time data
 
 data.acceptability <- subset(data, TrialType == 'Question')
+
 data.RT <- subset(data, TrialType == 'DashedSentence')
+names(data.RT) <- c("Subject","MD5","TrialType","Number","Element","Experiment","Item", "region", "fragment","RT","null","sentence", "attachment", "attractor")
+
+#######################################
+###                                 ###
+###     Acceptability analysis      ###
+###                                 ###
+#######################################
 
 #### a sanity check to ensure the correct number of subjects have been processed through
 print(data.acceptability %>% summarise(number = n_distinct(Subject)))
@@ -92,3 +99,34 @@ ezANOVA(data = data.acceptability, dv = response, wid = Subject, within = c(attr
     #3           attachment   1  47 0.01401451 0.9062688       3.681569e-05
     #4 attractor:attachment   1  47 0.05863566 0.8097190       1.022591e-04
 
+#######################################
+###                                 ###
+###     Reading time analysis       ###
+###                                 ###
+#######################################
+
+#### Sanity check for subject number
+
+print(data.RT %>% summarise(number = n_distinct(Subject)))
+
+#### Ensure RT data is numeric
+
+data.RT$RT <- as.numeric(as.character(data.acceptability$RT))
+
+#### Descriptive stats
+
+RT.subj.by.cond <- data.RT %>%
+  group_by(Subject, Experiment, region) %>%
+  summarise(average = mean(RT))
+
+RT.cond.summ <- RT.subj.by.cond %>%
+  group_by(Experiment, region) %>%
+  summarise(mean = mean(average),
+            SEM = sd(average)/sqrt(n_distinct(Subject)))
+
+#### ANOVA by region...maybe there is a cleaner way than using subset()?
+region3 <- subset(data.RT, region == "3")
+region4 <- subset(data.RT, region == "4")
+
+ezANOVA(data = region3, dv = RT, wid = Subject, within = c(attractor, attachment))
+ezANOVA(data = region4, dv = RT, wid = Subject, within = c(attractor, attachment))
