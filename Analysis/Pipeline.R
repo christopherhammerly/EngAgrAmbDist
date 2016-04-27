@@ -72,13 +72,12 @@ data.acceptability$response <- as.numeric(as.character(data.acceptability$respon
 
 subj.by.cond <- data.acceptability %>% 
     group_by(Subject, Experiment) %>% 
-    summarise(mean.resp = mean(response),
-              SEM = sd(response)/sqrt(n_distinct(Experiment)))
+    summarise(mean.resp = mean(response))
 
 cond.summ <- subj.by.cond %>%
   group_by(Experiment) %>%
-  summarise(mean_cond = mean(mean),
-            SEM = sd(mean)/sqrt(n_distinct(Subject)))
+  summarise(mean_cond = mean(mean.resp),
+            SEM = sd(mean.resp)/sqrt(n_distinct(Subject)))
 
 subj.by.factor <- data.acceptability %>% 
   group_by(Subject, attractor, attachment) %>% 
@@ -88,6 +87,17 @@ factor.summ <- subj.by.factor %>%
   group_by(attachment, attractor) %>%
   summarise(mean_cond = mean(mean),
             SEM = sd(mean)/sqrt(n_distinct(Subject)))
+
+subj.by.factor.high <- subset(subj.by.factor, attachment == 'high') %>%
+  group_by(attachment) %>%
+  summarise(mean_cond = mean(mean),
+            SEM = sd(mean)/sqrt(n_distinct(Subject)))
+
+subj.by.factor.low <- subset(subj.by.factor, attachment == 'low') %>%
+  group_by(attachment) %>%
+  summarise(mean_cond = mean(mean),
+            SEM = sd(mean)/sqrt(n_distinct(Subject)))
+
 
 #### Hypothesis testing
 
@@ -125,8 +135,42 @@ RT.cond.summ <- RT.subj.by.cond %>%
             SEM = sd(average)/sqrt(n_distinct(Subject)))
 
 #### ANOVA by region...maybe there is a cleaner way than using subset()?
+region1 <- subset(data.RT, region == "1")
+region2 <- subset(data.RT, region == "2")
 region3 <- subset(data.RT, region == "3")
 region4 <- subset(data.RT, region == "4")
 
+ezANOVA(data = region1, dv = RT, wid = Subject, within = c(attractor, attachment))
+
+ezANOVA(data = region2, dv = RT, wid = Subject, within = c(attractor, attachment))
+
 ezANOVA(data = region3, dv = RT, wid = Subject, within = c(attractor, attachment))
+
+#$ANOVA
+#Effect DFn DFd           F          p p<.05          ges
+#2            attractor   1  47 0.006894203 0.93417925       2.850593e-05
+#3           attachment   1  47 3.663265607 0.06172477       1.672898e-02
+#4 attractor:attachment   1  47 1.831087982 0.18247224       8.798376e-03
+
 ezANOVA(data = region4, dv = RT, wid = Subject, within = c(attractor, attachment))
+
+#$ANOVA
+#Effect DFn DFd            F           p p<.05          ges
+#2            attractor   1  47  0.002674849 0.958971832       1.996146e-05
+#3           attachment   1  47 11.042081348 0.001731053     * 3.490824e-02
+#4 attractor:attachment   1  47  6.493237744 0.014156668     * 4.310763e-02
+
+
+#### Plotting RT data
+
+pdf('RTplot.pdf')
+ggplot(subset(RT.cond.summ,Experiment %in% c("agr-amb-a","agr-amb-b","agr-amb-c","agr-amb-d")),aes(x=region,y=mean,color=Experiment,base=6,group=Experiment))+ 
+    labs(y="Reading time",x="Region",group=1) +geom_point(stat = "identity",size=1)+
+    geom_errorbar(aes(ymax = mean+SEM,ymin=mean-SEM,width=0.05))+ 
+    theme(text = element_text(size=10))+stat_identity(geom="line")+
+    scale_colour_manual(values = c("steelblue2","firebrick4","navyblue","firebrick2"),
+                        name="Conditions",
+                        labels= c("high, singular","low, singular", "high, plural", "low, plural"),
+                        breaks= c("agr-amb-c",'agr-amb-a','agr-amb-b','agr-amb-d'))
+dev.off()
+
