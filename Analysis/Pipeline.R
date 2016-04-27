@@ -68,16 +68,20 @@ print(data.acceptability %>% summarise(number = n_distinct(Subject)))
 
 data.acceptability$response <- as.numeric(as.character(data.acceptability$response))
 
+data.acceptability$z <- ave(data.acceptability$response, data.acceptability$Subject, FUN = scale)
+
 #### Basic descriptive stats
 
 subj.by.cond <- data.acceptability %>% 
     group_by(Subject, Experiment) %>% 
-    summarise(mean.resp = mean(response))
+    summarise(mean.resp = mean(response), 
+              mean.z = mean(z))
 
 cond.summ <- subj.by.cond %>%
   group_by(Experiment) %>%
   summarise(mean_cond = mean(mean.resp),
-            SEM = sd(mean.resp)/sqrt(n_distinct(Subject)))
+            SEM = sd(mean.resp)/sqrt(n_distinct(Subject)),
+            average.z = mean(mean.z))
 
 subj.by.factor <- data.acceptability %>% 
   group_by(Subject, attractor, attachment) %>% 
@@ -123,11 +127,14 @@ print(data.RT %>% summarise(number = n_distinct(Subject)))
 
 data.RT$RT <- as.numeric(as.character(data.acceptability$RT))
 
+#### Add a column with z-scores
+data.RT$z <- ave(data.RT$RT, data.RT$Subject, FUN = scale)
+
 #### Descriptive stats
 
 RT.subj.by.cond <- data.RT %>%
   group_by(Subject, Experiment, region) %>%
-  summarise(average = mean(RT))
+  summarise(average = mean(RT), average.z = mean(z))
 
 RT.cond.summ <- RT.subj.by.cond %>%
   group_by(Experiment, region) %>%
