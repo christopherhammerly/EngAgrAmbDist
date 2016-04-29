@@ -18,6 +18,7 @@ library(dplyr)
 library(ggplot2)
 library(downloader)
 library(ez)
+library(lme4)
 
 #### Set working directory
 #### Eventually, I will add a github link so people will be able to download the data directly and run analyses seamlessly.
@@ -50,7 +51,7 @@ data$attractor <- ifelse(data$Experiment=='agr-amb-a' | data$Experiment=='agr-am
 
 #### segregate acceptability judgments and reading time data
 
-data.acceptability <- subset(data, TrialType == 'Question')
+data.acceptability <- droplevels(subset(data, TrialType == 'Question'))
 
 data.RT <- subset(data, TrialType == 'DashedSentence')
 names(data.RT) <- c("Subject","MD5","TrialType","Number","Element","Experiment","Item", "region", "fragment","RT","null","sentence", "attachment", "attractor")
@@ -67,6 +68,8 @@ print(data.acceptability %>% summarise(number = n_distinct(Subject)))
 #### change the values for the judgments from characters to numbers 
 
 data.acceptability$response <- as.numeric(as.character(data.acceptability$response))
+data.acceptability$RT <- as.numeric(as.character(data.acceptability$RT))
+
 
 data.acceptability$z <- ave(data.acceptability$response, data.acceptability$Subject, FUN = scale)
 
@@ -113,11 +116,33 @@ ezANOVA(data = data.acceptability, dv = response, wid = Subject, within = c(attr
     #3           attachment   1  47 0.01401451 0.9062688       3.681569e-05
     #4 attractor:attachment   1  47 0.05863566 0.8097190       1.022591e-04
 
-#######################################
-###                                 ###
-###     Reading time analysis       ###
-###                                 ###
-#######################################
+#tapply(region2$RT, list(region1$Item, region1$Experiment), mean)
+#tapply(region1$RT, list(region1$Subject, region1$Experiment), mean)
+
+###
+
+truehist(data.acceptability$RT)
+
+subj.by.cond.judge.RT <- data.acceptability %>% 
+  group_by(Subject, Experiment) %>% 
+  summarise(mean.RT = mean(RT))
+
+cond.summ.judge.RT <- subj.by.cond.judge.RT %>%
+  group_by(Experiment) %>%
+  summarise(mean_cond = mean(mean.RT),
+            SEM = sd(mean.RT)/sqrt(n_distinct(Subject)))
+
+tapply(data.acceptability$RT, list(data.acceptability$Experiment), mean)
+
+ezANOVA(data = data.acceptability, dv = RT, wid = Subject, within = c(attractor, attachment))
+
+
+
+#########################################
+###                                   ###
+###     Raw Reading time analysis     ###
+###                                   ###
+#########################################
 
 #### Sanity check for subject number
 
@@ -125,27 +150,24 @@ print(data.RT %>% summarise(number = n_distinct(Subject)))
 
 #### Ensure RT data is numeric
 
-data.RT$RT <- as.numeric(as.character(data.acceptability$RT))
-
-#### Add a column with z-scores
-data.RT$z <- ave(data.RT$RT, data.RT$Subject, FUN = scale)
+data.RT$RT <- as.numeric(as.character(data.RT$RT))
 
 #### Descriptive stats
 
 RT.subj.by.cond <- data.RT %>%
   group_by(Subject, Experiment, region) %>%
-  summarise(average = mean(RT), average.z = mean(z))
+  summarise(average = mean(RT))
 
 RT.cond.summ <- RT.subj.by.cond %>%
   group_by(Experiment, region) %>%
   summarise(mean = mean(average),
             SEM = sd(average)/sqrt(n_distinct(Subject)))
 
-#### ANOVA by region...maybe there is a cleaner way than using subset()?
-region1 <- subset(data.RT, region == "1")
-region2 <- subset(data.RT, region == "2")
-region3 <- subset(data.RT, region == "3")
-region4 <- subset(data.RT, region == "4")
+#### ANOVA by region
+region1 <- droplevels(subset(data.RT, region == "1"))
+region2 <- droplevels(subset(data.RT, region == "2"))
+region3 <- droplevels(subset(data.RT, region == "3"))
+region4 <- droplevels(subset(data.RT, region == "4"))
 
 ezANOVA(data = region1, dv = RT, wid = Subject, within = c(attractor, attachment))
 
@@ -153,31 +175,84 @@ ezANOVA(data = region2, dv = RT, wid = Subject, within = c(attractor, attachment
 
 ezANOVA(data = region3, dv = RT, wid = Subject, within = c(attractor, attachment))
 
-#$ANOVA
-#Effect DFn DFd           F          p p<.05          ges
-#2            attractor   1  47 0.006894203 0.93417925       2.850593e-05
-#3           attachment   1  47 3.663265607 0.06172477       1.672898e-02
-#4 attractor:attachment   1  47 1.831087982 0.18247224       8.798376e-03
-
 ezANOVA(data = region4, dv = RT, wid = Subject, within = c(attractor, attachment))
-
-#$ANOVA
-#Effect DFn DFd            F           p p<.05          ges
-#2            attractor   1  47  0.002674849 0.958971832       1.996146e-05
-#3           attachment   1  47 11.042081348 0.001731053     * 3.490824e-02
-#4 attractor:attachment   1  47  6.493237744 0.014156668     * 4.310763e-02
-
 
 #### Plotting RT data
 
-pdf('RTplot.pdf')
+pdf('RTplotRaw.pdf')
 ggplot(subset(RT.cond.summ,Experiment %in% c("agr-amb-a","agr-amb-b","agr-amb-c","agr-amb-d")),aes(x=region,y=mean,color=Experiment,base=6,group=Experiment))+ 
-    labs(y="Reading time",x="Region",group=1) +geom_point(stat = "identity",size=1)+
-    geom_errorbar(aes(ymax = mean+SEM,ymin=mean-SEM,width=0.05))+ 
-    theme(text = element_text(size=10))+stat_identity(geom="line")+
-    scale_colour_manual(values = c("steelblue2","firebrick4","navyblue","firebrick2"),
-                        name="Conditions",
-                        labels= c("high, singular","low, singular", "high, plural", "low, plural"),
-                        breaks= c("agr-amb-c",'agr-amb-a','agr-amb-b','agr-amb-d'))
+  labs(y="Reading time",x="Region",group=1) +geom_point(stat = "identity",size=1)+
+  geom_errorbar(aes(ymax = mean+SEM,ymin=mean-SEM,width=0.05))+ 
+  theme(text = element_text(size=10))+stat_identity(geom="line")+
+  scale_colour_manual(values = c("steelblue2","firebrick4","navyblue","firebrick2"),
+                      name="Conditions",
+                      labels= c("high, singular","low, singular", "high, plural", "low, plural"),
+                      breaks= c("agr-amb-c",'agr-amb-a','agr-amb-b','agr-amb-d'))
 dev.off()
+
+#####################################
+###                               ###
+###      Residual RT analysis     ###
+###                               ###
+#####################################
+
+data.model <- subset(results, TrialType == 'DashedSentence')
+names(data.model) <- c("Subject","MD5","TrialType","Number","Element","Experiment","Item", "region", "fragment","RT","null","sentence")
+
+data.model$fragment <- as.character(data.model$fragment)
+
+data.model$char.length <- nchar(data.model$fragment)
+
+data.model$char.length <- as.numeric(as.character(data.model$char.length))
+data.model$RT <- as.numeric(as.character(data.model$RT))
+
+resid.model <- lmer(RT ~ char.length + (1|Subject), data.model)
+
+data.model$resid <- resid(resid.model)
+
+data.model.cond <- data.model %>%
+  group_by(Subject, Experiment, region) %>%
+  summarise(average = mean(resid))
+
+data.model.cond.summ <- data.model.cond %>%
+  group_by(Experiment, region) %>%
+  summarise(mean = mean(average),
+            SEM = sd(average)/sqrt(n_distinct(Subject)))
+
+#### ANOVA PREP...THIS NEEDS TO BE MAJORLY CLEANED UP SO ALL OF THIS ADDING OF COLUMNS IS FRONT-ENDED
+
+data.model.RT <- droplevels(subset(data.model , Experiment %in% c('agr-amb-a','agr-amb-b','agr-amb-c','agr-amb-d')))
+data.model.RT$attachment <- ifelse(data.model.RT$Experiment=='agr-amb-b' | data.model.RT$Experiment=='agr-amb-c','high','low')
+data.model.RT$attractor <- ifelse(data.model.RT$Experiment=='agr-amb-a' | data.model.RT$Experiment=='agr-amb-c','singular','plural')
+
+region1.resid <- droplevels(subset(data.model.RT, region == "1"))
+region2.resid <- droplevels(subset(data.model.RT, region == "2"))
+region3.resid <- droplevels(subset(data.model.RT, region == "3"))
+region4.resid <- droplevels(subset(data.model.RT, region == "4"))
+
+#### ACTUAL ANOVAs
+
+ezANOVA(data = region1.resid, dv = resid, wid = Subject, within = c(attractor, attachment))
+
+ezANOVA(data = region2.resid, dv = resid, wid = Subject, within = c(attractor, attachment))
+
+ezANOVA(data = region3.resid, dv = resid, wid = Subject, within = c(attractor, attachment))
+
+ezANOVA(data = region4.resid, dv = resid, wid = Subject, within = c(attractor, attachment))
+
+pdf('RTplotResidual.pdf')
+ggplot(subset(data.model.cond.summ,Experiment %in% c("agr-amb-a","agr-amb-b","agr-amb-c","agr-amb-d")),aes(x=region,y=mean,color=Experiment,base=6,group=Experiment))+ 
+  labs(y="Reading time",x="Region",group=1) +geom_point(stat = "identity",size=1)+
+  geom_errorbar(aes(ymax = mean+SEM,ymin=mean-SEM,width=0.05))+ 
+  theme(text = element_text(size=10))+stat_identity(geom="line")+
+  scale_colour_manual(values = c("steelblue2","firebrick4","navyblue","firebrick2"),
+                      name="Conditions",
+                      labels= c("high, singular","low, singular", "high, plural", "low, plural"),
+                      breaks= c("agr-amb-c",'agr-amb-a','agr-amb-b','agr-amb-d'))
+dev.off()
+
+#                        labels= c("high, singular","low, singular", "high, plural", "low, plural"),
+#                        breaks= c("agr-amb-c",'agr-amb-a','agr-amb-b','agr-amb-d'))
+
+
 
